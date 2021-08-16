@@ -1,9 +1,9 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 require("dotenv").config();
 
-const BSC_SCAN_KEY = process.env.BSCSCAN_API_KEY;
-const BSC_LIVE_MNEMONIC = process.env.BSC_LIVE_MNEMONIC;
-const BSC_TESTNET_MNEMONIC = process.env.BSC_TESTNET_MNEMONIC;
+const BSC_SCANAPI_KEY = process.env.BSCSCAN_API_KEY;
+const BSC_DEPLOYER_KEY = process.env.BSC_DEPLOYER_KEY;
+const BSC_TESTNET_DEPLOYER_KEY = process.env.BSC_TESTNET_DEPLOYER_KEY;
 
 module.exports = {
   networks: {
@@ -14,12 +14,10 @@ module.exports = {
     },
     testnet: {
       provider: () =>
-        new HDWalletProvider({
-          mnemonic: {
-            phrase: BSC_TESTNET_MNEMONIC,
-          },
-          providerOrUrl: `https://data-seed-prebsc-1-s1.binance.org:8545`,
-        }),
+        new HDWalletProvider(
+          BSC_TESTNET_DEPLOYER_KEY,
+          `https://data-seed-prebsc-2-s1.binance.org:8545`
+        ),
       network_id: 97,
       confirmations: 2,
       timeoutBlocks: 200,
@@ -27,13 +25,12 @@ module.exports = {
       from: "0xa6a4b15419F911B2C24d39329AbEa5532153dd65",
     },
     bsc: {
-      provider: () =>
-        new HDWalletProvider({
-          mnemonic: {
-            phrase: BSC_LIVE_MNEMONIC,
-          },
-          providerOrUrl: `https://bsc-dataseed1.binance.org`,
-        }),
+      provider: () => {
+        return new HDWalletProvider(
+          BSC_DEPLOYER_KEY,
+          `https://bsc-dataseed1.binance.org`
+        );
+      },
       network_id: 56,
       confirmations: 2,
       timeoutBlocks: 200,
@@ -43,7 +40,7 @@ module.exports = {
   plugins: ["truffle-plugin-verify"],
   api_keys: {
     // Add BSCSCAN_API_KEY in .env file to verify contracts deployed through truffle
-    bscscan: BSC_SCAN_KEY,
+    bscscan: BSC_SCANAPI_KEY,
   },
   // Set default mocha options here, use special reporters etc.
   mocha: {

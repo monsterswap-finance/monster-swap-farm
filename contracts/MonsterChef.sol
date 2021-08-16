@@ -2,14 +2,15 @@
 pragma solidity 0.6.12;
 
 /*
- * ApeSwapFinance 
+ * MonsterSwap 
  * App:             https://monsterswap.finance
  * Medium:          https://monsterswap.medium.com/    
  * Twitter:         https://twitter.com/MonsterSwapping
  * Telegram:        https://t.me/monster_finance
  * Announcements:   https://t.me/monsterswap_news
- * GitHub:          ##
+ * GitHub:          https://github.com/monsterswap-finance
  */
+
 
 import '@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol';
 import '@pancakeswap/pancake-swap-lib/contracts/token/BEP20/IBEP20.sol';
@@ -17,8 +18,8 @@ import '@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol';
 import '@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol';
 
 import "./MonsterToken.sol";
-import "./Daikaiju.sol";
-
+import "./MonsterDai.sol";
+import "./interface/IMonsterReferral.sol";
 
 // MonsterChef is the master of Monster. 
 // He can make Kaiju and he is a fair guy.
@@ -60,13 +61,11 @@ contract MonsterChef is Ownable {
     }
 
     // The KAIJU TOKEN!
-    MonsterToken public cake;
-    // Dev address.
-    address public devAddress;
+    MonsterToken public cake;    
     // Deposit Fee address
     address public feeAddress;
-    // The DAIKAIJU TOKEN!
-    Daikaiju public syrup;
+    // The MONSTERDAI TOKEN!
+    MonsterDai public syrup;
     // Dev address.
     address public devaddr;
     // KAIJU tokens created per block.
@@ -86,7 +85,7 @@ contract MonsterChef is Ownable {
     uint256 public startBlock;
 
     // Monster referral contract address.
-    //IMonsterReferral public monsterReferral;
+    IMonsterReferral public monsterReferral;
 
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -94,25 +93,25 @@ contract MonsterChef is Ownable {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
 
     constructor(
-        MonsterToken _kaiju,
-        Daikaiju _daikaiju,
+        MonsterToken _monster,
+        MonsterDai _monsterDai,
         address _devaddr,
-        uint256 _kaijuPerBlock,
+        address _feeaddr,
+        uint256 _monsterPerBlock,
         uint256 _startBlock,
         uint256 _multiplier
     ) public {
-        cake = _kaiju;
-        syrup = _daikaiju;
+        cake = _monster;
+        syrup = _monsterDai;
         devaddr = _devaddr;
-        cakePerBlock = _kaijuPerBlock;
+        feeAddress = _feeaddr;    
+        cakePerBlock = _monsterPerBlock;
         startBlock = _startBlock;
         BONUS_MULTIPLIER = _multiplier;
-        feeAddress = msg.sender;
-        devAddress = msg.sender;
-
+            
         // staking pool
         poolInfo.push(PoolInfo({
-            lpToken: _kaiju,
+            lpToken: _monster,
             allocPoint: 1000,
             lastRewardBlock: startBlock,
             accCakePerShare: 0,
@@ -201,7 +200,7 @@ contract MonsterChef is Ownable {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
     }
 
-    // View function to see pending KAIJUs on frontend.
+    // View function to see pending MONSTERs on frontend.
     function pendingCake(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
@@ -239,22 +238,34 @@ contract MonsterChef is Ownable {
         uint256 cakeReward = multiplier.mul(cakePerBlock).mul(pool.allocPoint).div(totalAllocPoint);
         cake.mint(devaddr, cakeReward.div(10));
         cake.mint(address(syrup), cakeReward);
+
+
         pool.accCakePerShare = pool.accCakePerShare.add(cakeReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MonsterChef for KAIJU allocation.
-    function deposit(uint256 _pid, uint256 _amount) public validatePool(_pid) {
+    // Deposit LP tokens to MonsterChef for MONSTER allocation.
+    function deposit(uint256 _pid, uint256 _amount, address _referrer) public validatePool(_pid) {
 
-        require (_pid != 0, 'deposit KAIJU by staking');
+        require (_pid != 0, 'deposit MONSTER by staking');
 
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
+        if (_amount > 0 && address(monsterReferral) != address(0) && _referrer != address(0) && _referrer != msg.sender) {
+            monsterReferral.recordReferral(msg.sender, _referrer);
+        }
+
         if (user.amount > 0) {
             uint256 pending = user.amount.mul(pool.accCakePerShare).div(1e12).sub(user.rewardDebt);
             if(pending > 0) {
-                safeCakeTransfer(msg.sender, pending);
+                if (pool.harvestFeeBP > 0) {
+                    uint256 harvestFee = pending.mul(pool.harvestFeeBP).div(10000);
+                    pool.lpToken.safeTransfer(feeAddress, harvestFee);
+                    pending = pending.sub(harvestFee);
+                }
+                safeCakeTransfer(msg.sender, pending);          
+                monsterReferral.CalculateCommission(msg.sender, pending);      
             }
         }
         if (_amount > 0) {
@@ -273,7 +284,7 @@ contract MonsterChef is Ownable {
 
     // Withdraw LP tokens from MonsterChef.
     function withdraw(uint256 _pid, uint256 _amount) public validatePool(_pid) {
-        require (_pid != 0, 'withdraw KAIJU by unstaking');
+        require (_pid != 0, 'withdraw MONSTER by unstaking');
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
@@ -282,21 +293,24 @@ contract MonsterChef is Ownable {
         uint256 pending = user.amount.mul(pool.accCakePerShare).div(1e12).sub(user.rewardDebt);
         if(pending > 0) {            
             if (pool.harvestFeeBP > 0) {
-                uint256 harvestFee = _amount.mul(pool.harvestFeeBP).div(10000);
+                uint256 harvestFee = pending.mul(pool.harvestFeeBP).div(10000);
                 pool.lpToken.safeTransfer(feeAddress, harvestFee);
                 pending = pending.sub(harvestFee);
             }
             safeCakeTransfer(msg.sender, pending);
+            monsterReferral.CalculateCommission(msg.sender, pending);
         }
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
+
+            
         }
         user.rewardDebt = user.amount.mul(pool.accCakePerShare).div(1e12);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
-    // Stake KAIJU tokens to MonsterChef
+    // Stake MONSTER tokens to MonsterChef
     function enterStaking(uint256 _amount) public {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
@@ -317,7 +331,7 @@ contract MonsterChef is Ownable {
         emit Deposit(msg.sender, 0, _amount);
     }
 
-    // Withdraw KAIJU tokens from STAKING.
+    // Withdraw MONSTER tokens from STAKING.
     function leaveStaking(uint256 _amount) public {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
@@ -370,5 +384,10 @@ contract MonsterChef is Ownable {
         require(msg.sender == feeAddress, "setFeeAddress: FORBIDDEN");
         require(_feeAddress != address(0), "setFeeAddress: ZERO");
         feeAddress = _feeAddress;
+    }
+
+    // Update the panther referral contract address by the owner
+    function setMonsterReferral(IMonsterReferral _monsterReferral) public onlyOwner {
+        monsterReferral = _monsterReferral;
     }
 }

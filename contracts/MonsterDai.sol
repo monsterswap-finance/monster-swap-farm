@@ -8,14 +8,14 @@ pragma solidity 0.6.12;
  * Twitter:         https://twitter.com/MonsterSwapping
  * Telegram:        https://t.me/monster_finance
  * Announcements:   https://t.me/monsterswap_news
- * GitHub:          ##
+ * GitHub:          https://github.com/monsterswap-finance
  */
 
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
 import "./MonsterToken.sol";
 
-// SyrupBar with Governance.
-contract Daikaiju is BEP20('Daikaiju Token', 'DAIKAIJU') {
+// MonsterDai with Governance.
+contract MonsterDai is BEP20('MonsterDai Token', 'MONSTERDAI') {
     /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (MonsterChef).
     function mint(address _to, uint256 _amount) public onlyOwner {
         _mint(_to, _amount);
@@ -27,7 +27,7 @@ contract Daikaiju is BEP20('Daikaiju Token', 'DAIKAIJU') {
         _moveDelegates(_delegates[_from], address(0), _amount);
     }
 
-    // The CAKE TOKEN!
+    // The MONSTER TOKEN!
     MonsterToken public cake;
 
 

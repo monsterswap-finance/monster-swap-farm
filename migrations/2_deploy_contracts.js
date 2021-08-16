@@ -1,19 +1,18 @@
 const { BigNumber } = require("@ethersproject/bignumber");
 const MonsterChef = artifacts.require("MonsterChef");
-// const SupportApe = artifacts.require("SupportApe");
-const KaijuToken = artifacts.require("KaijuToken");
+const MonsterToken = artifacts.require("MonsterToken");
 const Daikaiju = artifacts.require("Daikaiju");
 const MultiCall = artifacts.require("MultiCall");
 const Timelock = artifacts.require("Timelock");
 
-const INITIAL_MINT = "25000";
+const INITIAL_MINT = "15000"; // Pre-Mint 15,000 token
 const BLOCKS_PER_HOUR = 3600 / 3; // 3sec Block Time
-const TOKENS_PER_BLOCK = "10";
-const BLOCKS_PER_DAY = 24 * BLOCKS_PER_HOUR;
-const TIMELOCK_DELAY_SECS = 3600 * 24;
-const STARTING_BLOCK = 4853714;
+const TOKENS_PER_BLOCK = "11.5";
+const TIMELOCK_DELAY_SECS = 3600 * 24; // 24 Hours delay
+const STARTING_BLOCK = 4853714; // Unknown
 const REWARDS_START = String(STARTING_BLOCK + BLOCKS_PER_HOUR * 6);
-const FARM_FEE_ACCOUNT = "0xCEf34e4db130c8A64493517985b23af5B13E8cc6";
+const FARM_FEE_ACCOUNT = "0xa6a4b15419F911B2C24d39329AbEa5532153dd65";
+const DEV_ADDR_ACCOUNT = "0xa6a4b15419F911B2C24d39329AbEa5532153dd65";
 
 const logTx = (tx) => {
   console.dir(tx, { depth: 3 });
@@ -35,21 +34,21 @@ module.exports = async function (deployer, network, accounts) {
     feeAccount = accounts[3];
   }
 
-  let kaijuTokenInstance;
+  let MonsterTokenInstance;
   let daikaijuInstance;
   let monsterChefInstance;
 
   /**
-   * Deploy KaijuToken
+   * Deploy MonsterToken
    */
   deployer
-    .deploy(KaijuToken)
+    .deploy(MonsterToken)
     .then((instance) => {
-      kaijuTokenInstance = instance;
+      MonsterTokenInstance = instance;
       /**
        * Mint intial tokens for liquidity pool
        */
-      return kaijuTokenInstance.mint(
+      return MonsterTokenInstance.mint(
         BigNumber.from(INITIAL_MINT).mul(BigNumber.from(String(10 ** 18)))
       );
     })
@@ -58,7 +57,7 @@ module.exports = async function (deployer, network, accounts) {
       /**
        * Deploy Daikaiju
        */
-      return deployer.deploy(Daikaiju, KaijuToken.address);
+      return deployer.deploy(Daikaiju, MonsterToken.address);
     })
     .then((instance) => {
       daikaijuInstance = instance;
@@ -69,12 +68,13 @@ module.exports = async function (deployer, network, accounts) {
         console.log(`Deploying MonsterChef with BSC MAINNET settings.`);
         return deployer.deploy(
           MonsterChef,
-          KaijuToken.address, // _kaijutoken
+          MonsterToken.address, // _kaijutoken
           Daikaiju.address, // _daikaiju
-          feeAccount, // _devaddr
+          DEV_ADDR_ACCOUNT, // _devAddr
+          FARM_FEE_ACCOUNT, // _feeAddr
           BigNumber.from(TOKENS_PER_BLOCK).mul(
             BigNumber.from(String(10 ** 18))
-          ), // _bananaPerBlock
+          ), // _MonsterPerBlock
           REWARDS_START, // _startBlock
           4 // _multiplier
         );
@@ -82,7 +82,7 @@ module.exports = async function (deployer, network, accounts) {
       console.log(`Deploying MonsterChef with DEV/TEST settings`);
       return deployer.deploy(
         MonsterChef,
-        KaijuToken.address,
+        MonsterToken.address,
         Daikaiju.address,
         feeAccount,
         BigNumber.from(TOKENS_PER_BLOCK).mul(BigNumber.from(String(10 ** 18))),
@@ -104,32 +104,6 @@ module.exports = async function (deployer, network, accounts) {
        */
       return daikaijuInstance.transferOwnership(MonsterChef.address);
     })
-    // .then((tx) => {
-    //   logTx(tx);
-    //   /**
-    //    * Deploy SupportApe
-    //    */
-    //   if (network == "bsc" || network == "bsc-fork") {
-    //     console.log(`Deploying SupportApe with BSC MAINNET settings.`);
-    //     return deployer.deploy(
-    //       SupportApe,
-    //       Daikaiju.address, //_daikaiju
-    //       BigNumber.from(TOKENS_PER_BLOCK).mul(
-    //         BigNumber.from(String(10 ** 18))
-    //       ), // _rewardPerBlock
-    //       REWARDS_START, // _startBlock
-    //       STARTING_BLOCK + BLOCKS_PER_DAY * 365 // _endBlock
-    //     );
-    //   }
-    //   console.log(`Deploying SupportApe with DEV/TEST settings`);
-    //   return deployer.deploy(
-    //     SupportApe,
-    //     Daikaiju.address, //_daikaiju
-    //     BigNumber.from(TOKENS_PER_BLOCK).mul(BigNumber.from(String(10 ** 18))), // _rewardPerBlock
-    //     STARTING_BLOCK + BLOCKS_PER_HOUR * 6, // _startBlock
-    //     "99999999999999999" // _endBlock
-    //   );
-    // })
     .then(() => {
       /**
        * Deploy MultiCall
@@ -146,7 +120,7 @@ module.exports = async function (deployer, network, accounts) {
       console.log("Rewards Start at block: ", REWARDS_START);
       console.table({
         MonsterChef: MonsterChef.address,
-        KaijuToken: KaijuToken.address,
+        MonsterToken: MonsterToken.address,
         Daikaiju: Daikaiju.address,
         MultiCall: MultiCall.address,
         Timelock: Timelock.address,

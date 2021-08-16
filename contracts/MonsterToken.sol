@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
 /*
@@ -8,7 +7,7 @@ pragma solidity 0.6.12;
  * Twitter:         https://twitter.com/MonsterSwapping
  * Telegram:        https://t.me/monster_finance
  * Announcements:   https://t.me/monsterswap_news
- * GitHub:          ##
+ * GitHub:          https://github.com/monsterswap-finance
  */
 
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
