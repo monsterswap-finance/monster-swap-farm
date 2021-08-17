@@ -1,13 +1,13 @@
 const { BigNumber } = require("@ethersproject/bignumber");
 const MonsterChef = artifacts.require("MonsterChef");
 const MonsterToken = artifacts.require("MonsterToken");
-const Daikaiju = artifacts.require("Daikaiju");
+const MonsterDai = artifacts.require("MonsterDai");
 const MultiCall = artifacts.require("MultiCall");
 const Timelock = artifacts.require("Timelock");
 
 const INITIAL_MINT = "15000"; // Pre-Mint 15,000 token
 const BLOCKS_PER_HOUR = 3600 / 3; // 3sec Block Time
-const TOKENS_PER_BLOCK = "11.5";
+const TOKENS_PER_BLOCK = "12";
 const TIMELOCK_DELAY_SECS = 3600 * 24; // 24 Hours delay
 const STARTING_BLOCK = 4853714; // Unknown
 const REWARDS_START = String(STARTING_BLOCK + BLOCKS_PER_HOUR * 6);
@@ -35,7 +35,7 @@ module.exports = async function (deployer, network, accounts) {
   }
 
   let MonsterTokenInstance;
-  let daikaijuInstance;
+  let MonsterDaiInstance;
   let monsterChefInstance;
 
   /**
@@ -55,12 +55,12 @@ module.exports = async function (deployer, network, accounts) {
     .then((tx) => {
       logTx(tx);
       /**
-       * Deploy Daikaiju
+       * Deploy MonsterDai
        */
-      return deployer.deploy(Daikaiju, MonsterToken.address);
+      return deployer.deploy(MonsterDai, MonsterToken.address);
     })
     .then((instance) => {
-      daikaijuInstance = instance;
+      MonsterDaiInstance = instance;
       /**
        * Deploy MonsterChef
        */
@@ -68,8 +68,8 @@ module.exports = async function (deployer, network, accounts) {
         console.log(`Deploying MonsterChef with BSC MAINNET settings.`);
         return deployer.deploy(
           MonsterChef,
-          MonsterToken.address, // _kaijutoken
-          Daikaiju.address, // _daikaiju
+          MonsterToken.address, // _monsterToken
+          MonsterDai.address, // _MonsterDai
           DEV_ADDR_ACCOUNT, // _devAddr
           FARM_FEE_ACCOUNT, // _feeAddr
           BigNumber.from(TOKENS_PER_BLOCK).mul(
@@ -83,8 +83,9 @@ module.exports = async function (deployer, network, accounts) {
       return deployer.deploy(
         MonsterChef,
         MonsterToken.address,
-        Daikaiju.address,
-        feeAccount,
+        MonsterDai.address,
+        DEV_ADDR_ACCOUNT, // _devAddr
+        FARM_FEE_ACCOUNT, // _feeAddr
         BigNumber.from(TOKENS_PER_BLOCK).mul(BigNumber.from(String(10 ** 18))),
         0,
         4
@@ -95,14 +96,14 @@ module.exports = async function (deployer, network, accounts) {
       /**
        * TransferOwnership of KAIJU to MonsterChef
        */
-      return kaijuTokenInstance.transferOwnership(MonsterChef.address);
+      return MonsterTokenInstance.transferOwnership(MonsterChef.address);
     })
     .then((tx) => {
       logTx(tx);
       /**
-       * TransferOwnership of DaiKaiju to MonsterChef
+       * TransferOwnership of monsterdai to MonsterChef
        */
-      return daikaijuInstance.transferOwnership(MonsterChef.address);
+      return MonsterDaiInstance.transferOwnership(MonsterChef.address);
     })
     .then(() => {
       /**
@@ -114,14 +115,14 @@ module.exports = async function (deployer, network, accounts) {
       /**
        * Deploy Timelock
        */
-      return deployer.deploy(Timelock, currentAccount, TIMELOCK_DELAY_SECS);
+      return deployer.deploy(Timelock, DEV_ADDR_ACCOUNT, TIMELOCK_DELAY_SECS);
     })
     .then(() => {
       console.log("Rewards Start at block: ", REWARDS_START);
       console.table({
         MonsterChef: MonsterChef.address,
         MonsterToken: MonsterToken.address,
-        Daikaiju: Daikaiju.address,
+        MonsterDai: MonsterDai.address,
         MultiCall: MultiCall.address,
         Timelock: Timelock.address,
       });

@@ -9,7 +9,7 @@
     "compile": "truffle compile",
     "verify:migrations": "truffle run verify Migrations --network bsc",
     "verify:bsc": "truffle run verify MonsterChef --network bsc && truffle run verify KaijuToken --network bsc && truffle run verify Timelock --network bsc && truffle run verify Daikaiju --network bsc && truffle run verify MultiCall --network testnet",
-    "verify:testnet": "truffle run verify MonsterChef --network testnet && truffle run verify KaijuToken --network testnet && truffle run verify Timelock --network testnet && truffle run verify Daikaiju --network testnet && truffle run verify MultiCall --network testnet",
+    "verify:testnet": "truffle run verify MonsterChef --network testnet && truffle run verify MonsterToken --network testnet && truffle run verify Timelock --network testnet && truffle run verify MonsterDai --network testnet && truffle run verify MultiCall --network testnet",
     "encode": "clear && ts-node ./scripts/encode.ts",
     "encode-timelock-delay": "clear && ts-node ./scripts/encode-timelock-delay.ts",
     "test": "npx builder test",
