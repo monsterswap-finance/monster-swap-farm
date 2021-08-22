@@ -72,9 +72,7 @@ contract MonsterChef is Ownable {
     uint256 public cakePerBlock;
     // Bonus muliplier for early kaiju makers.
     uint256 public BONUS_MULTIPLIER;
-    // The migrator contract. It has a lot of power. Can only be set through governance (owner).
-    // IMigratorChef public migrator;
-
+    
     // Info of each pool.
     PoolInfo[] public poolInfo;
     // Info of each user that stakes LP tokens.
@@ -87,10 +85,22 @@ contract MonsterChef is Ownable {
     // Monster referral contract address.
     IMonsterReferral public monsterReferral;
 
+    // Max Bonus Multiplie : 4
+    uint16 public constant MAXIMUM_BONUS_MULTIPLIER = 4;
+    // Max deposit fee: 4%.
+    uint16 public constant MAXIMUM_DEPOSIT_FEE = 400;
+    // Max harvest fee: 4%.
+    uint16 public constant MAXIMUM_HARVEST_FEE = 400;
+
+
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event ReferralCommissionPaid(address indexed user, address indexed referrer, uint256 commissionAmount);
+    event SetReferralAddress(address indexed user, IReferral indexed newAddress);
+    event SetDevAddress(address _devaddr);
+    event SetFeeAddress(address _feeAddress);
 
     constructor(
         MonsterToken _monster,
@@ -129,6 +139,7 @@ contract MonsterChef is Ownable {
     }
 
     function updateMultiplier(uint256 multiplierNumber) public onlyOwner {
+        require(multiplierNumber <= MAXIMUM_BONUS_MULTIPLIER, "setMultiplier: invalid multiplier number");
         BONUS_MULTIPLIER = multiplierNumber;
     }
 
@@ -147,6 +158,9 @@ contract MonsterChef is Ownable {
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(uint256 _allocPoint, IBEP20 _lpToken,  uint16 _depositFeeBP, uint16 _harvestFeeBP, bool _withUpdate) public onlyOwner {
+        require(_depositFeeBP <= MAXIMUM_DEPOSIT_FEE, "set: invalid deposit fee basis points");
+        require(_harvestFeeBP <= MAXIMUM_HARVEST_FEE, "set: invalid harvest fee basis points");
+
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -166,8 +180,8 @@ contract MonsterChef is Ownable {
 
     // Update the given pool's KAIJU allocation point. Can only be called by the owner.
     function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFeeBP, uint16 _harvestFeeBP, bool _withUpdate) public onlyOwner {
-        require(_depositFeeBP <= 10000, "set: invalid deposit fee basis points");
-        require(_harvestFeeBP <= 10000, "set: invalid harvest fee basis points");
+        require(_depositFeeBP <= MAXIMUM_DEPOSIT_FEE, "set: invalid deposit fee basis points");
+        require(_harvestFeeBP <= MAXIMUM_HARVEST_FEE, "set: invalid harvest fee basis points");
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -230,7 +244,7 @@ contract MonsterChef is Ownable {
             return;
         }
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        if (lpSupply == 0) {
+        if (lpSupply == 0 || pool.allocPoint == 0) {
             pool.lastRewardBlock = block.number;
             return;
         }
@@ -264,15 +278,17 @@ contract MonsterChef is Ownable {
                     pool.lpToken.safeTransfer(feeAddress, harvestFee);
                     pending = pending.sub(harvestFee);
                 }
-                safeCakeTransfer(msg.sender, pending);          
-                monsterReferral.CalculateCommission(msg.sender, pending);      
+                safeCakeTransfer(msg.sender, pending);    
+                payReferralCommission(msg.sender, pending);    
             }
         }
         if (_amount > 0) {
             pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
              if (pool.depositFeeBP > 0) {
                 uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);
-                pool.lpToken.safeTransfer(feeAddress, depositFee);
+                if (depositFee > 0) {
+                    pool.lpToken.safeTransfer(feeAddress, depositFee);
+                }                
                 user.amount = user.amount.add(_amount).sub(depositFee);
             } else {
                 user.amount = user.amount.add(_amount);
@@ -298,7 +314,7 @@ contract MonsterChef is Ownable {
                 pending = pending.sub(harvestFee);
             }
             safeCakeTransfer(msg.sender, pending);
-            monsterReferral.CalculateCommission(msg.sender, pending);
+            payReferralCommission(msg.sender, pending);
         }
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
@@ -355,10 +371,24 @@ contract MonsterChef is Ownable {
     function emergencyWithdraw(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        if(_pid == 0) {
+            syrup.burn(msg.sender, user.amount);
+        }
         pool.lpToken.safeTransfer(address(msg.sender), user.amount);
         emit EmergencyWithdraw(msg.sender, _pid, user.amount);
         user.amount = 0;
         user.rewardDebt = 0;
+    }
+
+    // Pay referral commission to the referrer who referred this user.
+    function payReferralCommission(address _user, uint256 commissionAmount) internal {
+        if (address(monsterReferral) != address(0) && referralCommissionRate > 0) {
+            address referrer = monsterReferral.getReferrer(_user);
+          
+            if (referrer != address(0) && commissionAmount > 0) {
+                 monsterReferral.CalculateCommission(msg.sender, commissionAmount);
+            }
+        }
     }
 
     function getPoolInfo(uint256 _pid) public view
@@ -376,18 +406,25 @@ contract MonsterChef is Ownable {
 
     // Update dev address by the previous dev.
     function dev(address _devaddr) public {
-        require(msg.sender == devaddr, "dev: wut?");
-        devaddr = _devaddr;
+        require(msg.sender == devaddr, "setDevAddress: FORBIDDEN?");
+        require(_devaddr != address(0), "setDevAddress: ZERO");
+
+         devaddr = _devaddr;
+         emit SetDevAddress(msg.sender, _devaddr);
     }
 
+    // Update Fee Address By Previous feeAddr
      function setFeeAddress(address _feeAddress) public {
         require(msg.sender == feeAddress, "setFeeAddress: FORBIDDEN");
         require(_feeAddress != address(0), "setFeeAddress: ZERO");
+        
         feeAddress = _feeAddress;
+        emit SetFeeAddress(msg.sender, _feeAddress);
     }
 
-    // Update the panther referral contract address by the owner
+    // Update the monster referral contract address by the owner
     function setMonsterReferral(IMonsterReferral _monsterReferral) public onlyOwner {
         monsterReferral = _monsterReferral;
+        emit SetReferralAddress(msg.sender, _monsterReferral);
     }
 }

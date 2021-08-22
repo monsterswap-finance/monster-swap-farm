@@ -118,6 +118,12 @@ module.exports = async function (deployer, network, accounts) {
       return deployer.deploy(Timelock, DEV_ADDR_ACCOUNT, TIMELOCK_DELAY_SECS);
     })
     .then(() => {
+      /**
+       * TransferOwnership of MonsterChef to TimeLock Contract
+       */
+      return monsterChefInstance.transferOwnership(Timelock.address);
+    })
+    .then(() => {
       console.log("Rewards Start at block: ", REWARDS_START);
       console.table({
         MonsterChef: MonsterChef.address,
