@@ -99,8 +99,9 @@ contract MonsterChef is Ownable {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event ReferralCommissionPaid(address indexed user, address indexed referrer, uint256 commissionAmount);
     event SetReferralAddress(address indexed user, IReferral indexed newAddress);
-    event SetDevAddress(address _devaddr);
-    event SetFeeAddress(address _feeAddress);
+    event SetDevAddress(address indexed _devaddr);
+    event SetFeeAddress(address indexed _feeAddress);
+    event SetMultiplier(uint256 indexed _multiplier);
 
     constructor(
         MonsterToken _monster,
@@ -141,6 +142,7 @@ contract MonsterChef is Ownable {
     function updateMultiplier(uint256 multiplierNumber) public onlyOwner {
         require(multiplierNumber <= MAXIMUM_BONUS_MULTIPLIER, "setMultiplier: invalid multiplier number");
         BONUS_MULTIPLIER = multiplierNumber;
+        emit SetMultiplier(multiplierNumber);    
     }
 
     function poolLength() external view returns (uint256) {
@@ -176,6 +178,8 @@ contract MonsterChef is Ownable {
             harvestFeeBP: _harvestFeeBP
         }));
         updateStakingPool();
+
+          
     }
 
     // Update the given pool's KAIJU allocation point. Can only be called by the owner.
@@ -371,13 +375,13 @@ contract MonsterChef is Ownable {
     function emergencyWithdraw(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        user.amount = 0;
+        user.rewardDebt = 0;
         if(_pid == 0) {
             syrup.burn(msg.sender, user.amount);
         }
         pool.lpToken.safeTransfer(address(msg.sender), user.amount);
-        emit EmergencyWithdraw(msg.sender, _pid, user.amount);
-        user.amount = 0;
-        user.rewardDebt = 0;
+        emit EmergencyWithdraw(msg.sender, _pid, user.amount);       
     }
 
     // Pay referral commission to the referrer who referred this user.
@@ -405,7 +409,7 @@ contract MonsterChef is Ownable {
     }
 
     // Update dev address by the previous dev.
-    function dev(address _devaddr) public {
+    function setDevAddress(address _devaddr) public {
         require(msg.sender == devaddr, "setDevAddress: FORBIDDEN?");
         require(_devaddr != address(0), "setDevAddress: ZERO");
 
