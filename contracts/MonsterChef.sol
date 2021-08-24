@@ -85,7 +85,7 @@ contract MonsterChef is Ownable {
     // Monster referral contract address.
     IMonsterReferral public monsterReferral;
 
-    // Max Bonus Multiplie : 4
+    // Max Bonus Multiplier : 4
     uint16 public constant MAXIMUM_BONUS_MULTIPLIER = 4;
     // Max deposit fee: 4%.
     uint16 public constant MAXIMUM_DEPOSIT_FEE = 400;
@@ -102,6 +102,8 @@ contract MonsterChef is Ownable {
     event SetDevAddress(address indexed _devaddr);
     event SetFeeAddress(address indexed _feeAddress);
     event SetMultiplier(uint256 indexed _multiplier);
+    event AddPool(IBEP20 indexed _lpToken, uint256 _allocPoint, uint256 _depositFeeBP, uint256 _harvestFeeBP);
+    event UpdatePool(uint256 indexed pid, uint256 _allocPoint, uint256 _depositFeeBP, uint256 _harvestFeeBP);
 
     constructor(
         MonsterToken _monster,
@@ -179,7 +181,7 @@ contract MonsterChef is Ownable {
         }));
         updateStakingPool();
 
-          
+        emit AddPool(_lpToken, _allocPoint, _depositFeeBP, _harvestFeeBP);
     }
 
     // Update the given pool's KAIJU allocation point. Can only be called by the owner.
@@ -198,6 +200,8 @@ contract MonsterChef is Ownable {
             totalAllocPoint = totalAllocPoint.sub(prevAllocPoint).add(_allocPoint);
             updateStakingPool();
         }
+
+        emit UpdatePool(_pid, _allocPoint, _depositFeeBP, _harvestFeeBP);
     }
 
     function updateStakingPool() internal {
@@ -335,16 +339,33 @@ contract MonsterChef is Ownable {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
         updatePool(0);
+       
         if (user.amount > 0) {
             uint256 pending = user.amount.mul(pool.accCakePerShare).div(1e12).sub(user.rewardDebt);
             if(pending > 0) {
-                safeCakeTransfer(msg.sender, pending);
+                if (pool.harvestFeeBP > 0) {
+                    uint256 harvestFee = pending.mul(pool.harvestFeeBP).div(10000);
+                    pool.lpToken.safeTransfer(feeAddress, harvestFee);
+                    pending = pending.sub(harvestFee);
+                }
+                safeCakeTransfer(msg.sender, pending);    
+                payReferralCommission(msg.sender, pending);    
             }
         }
-        if(_amount > 0) {
+
+
+        if (_amount > 0) {
             pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
-            user.amount = user.amount.add(_amount);
-        }
+             if (pool.depositFeeBP > 0) {
+                uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);
+                if (depositFee > 0) {
+                    pool.lpToken.safeTransfer(feeAddress, depositFee);
+                }                
+                user.amount = user.amount.add(_amount).sub(depositFee);
+            } else {
+                user.amount = user.amount.add(_amount);
+            }           
+        }       
         user.rewardDebt = user.amount.mul(pool.accCakePerShare).div(1e12);
 
         syrup.mint(msg.sender, _amount);
@@ -357,9 +378,15 @@ contract MonsterChef is Ownable {
         UserInfo storage user = userInfo[0][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(0);
-        uint256 pending = user.amount.mul(pool.accCakePerShare).div(1e12).sub(user.rewardDebt);
-        if(pending > 0) {
+        uint256 pending = user.amount.mul(pool.accCakePerShare).div(1e12).sub(user.rewardDebt);        
+        if(pending > 0) {            
+            if (pool.harvestFeeBP > 0) {
+                uint256 harvestFee = pending.mul(pool.harvestFeeBP).div(10000);
+                pool.lpToken.safeTransfer(feeAddress, harvestFee);
+                pending = pending.sub(harvestFee);
+            }
             safeCakeTransfer(msg.sender, pending);
+            payReferralCommission(msg.sender, pending);
         }
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
