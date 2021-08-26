@@ -18,7 +18,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.4.0",
     "@ethersproject/contracts": "^5.0.11",
-    "@openzeppelin/contracts": "^4.1.0",
+    "@openzeppelin/contracts": "^4.3.0",
     "@openzeppelin/test-helpers": "^0.5.11",
     "@pancakeswap/pancake-swap-lib": "0.0.1",
     "@truffle/hdwallet-provider": "^1.4.1",
