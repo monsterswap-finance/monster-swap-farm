@@ -4,6 +4,7 @@ require("dotenv").config();
 const BSC_SCANAPI_KEY = process.env.BSCSCAN_API_KEY;
 const BSC_DEPLOYER_KEY = process.env.BSC_DEPLOYER_KEY;
 const BSC_TESTNET_DEPLOYER_KEY = process.env.BSC_TESTNET_DEPLOYER_KEY;
+const BSC_TESTNET_DEPLOYER_ACC = process.env.BSC_TESTNET_DEPLOYER_ACCOUNT;
 
 module.exports = {
   networks: {
@@ -16,13 +17,13 @@ module.exports = {
       provider: () =>
         new HDWalletProvider(
           BSC_TESTNET_DEPLOYER_KEY,
-          `https://data-seed-prebsc-2-s1.binance.org:8545`
+          `https://data-seed-prebsc-2-s2.binance.org:8545/`
         ),
       network_id: 97,
       confirmations: 2,
       timeoutBlocks: 200,
       skipDryRun: true,
-      from: "0xa6a4b15419F911B2C24d39329AbEa5532153dd65",
+      from: BSC_TESTNET_DEPLOYER_ACC,
     },
     bsc: {
       provider: () => {

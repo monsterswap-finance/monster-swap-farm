@@ -1,11 +1,9 @@
 # monster-farm
 
-- **MonsterChef**: [0xcc9C6E8162450588FC336576438FB20624E4415C](https://testnet.bscscan.com/address/0xcc9C6E8162450588FC336576438FB20624E4415C)
+- **MonsterChef**: [0xD39EEA6E30e3cB948dE21d4A2ddEa8a2Cbdc1c5b](https://testnet.bscscan.com/address/0xD39EEA6E30e3cB948dE21d4A2ddEa8a2Cbdc1c5b)
 
-- **MonsterToken**: [0x23040c7b54112a6E6e70559d49114Ed80C41C282](https://testnet.bscscan.com/address/0x23040c7b54112a6E6e70559d49114Ed80C41C282)
+- **MonsterToken**: [0x3360703A27A938c467D4d9ff3e6F4544795B2404](https://testnet.bscscan.com/address/0x3360703A27A938c467D4d9ff3e6F4544795B2404)
 
-- **MonsterDai**: [0x23c34D2dfc412057F2251845F8ef4762bD9A9dd6](https://testnet.bscscan.com/address/0x23c34D2dfc412057F2251845F8ef4762bD9A9dd6)
+- **MultiCall**: [0x5A228b99c42b77D3429D704693F8917fC723631A](https://testnet.bscscan.com/address/0x5A228b99c42b77D3429D704693F8917fC723631A)
 
-- **MultiCall**: [0x036e279170a5c4e76Ef0d26Dab2753022FBC0f56](https://testnet.bscscan.com/address/0x036e279170a5c4e76Ef0d26Dab2753022FBC0f56)
-
-- **Timelock**: [0x86191A6F5cC8C8cAfeAC1aABfCB69a712C784E0b](https://testnet.bscscan.com/address/0x86191A6F5cC8C8cAfeAC1aABfCB69a712C784E0b)
+- **Timelock**: [0x8Da9f4ed77d507333B11b737E7cf8472d6Dbc04b](https://testnet.bscscan.com/address/0x8Da9f4ed77d507333B11b737E7cf8472d6Dbc04b)

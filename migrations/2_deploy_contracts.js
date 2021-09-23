@@ -1,7 +1,6 @@
 const { BigNumber } = require("@ethersproject/bignumber");
 const MonsterChef = artifacts.require("MonsterChef");
 const MonsterToken = artifacts.require("MonsterToken");
-const MonsterDai = artifacts.require("MonsterDai");
 const MultiCall = artifacts.require("MultiCall");
 const Timelock = artifacts.require("Timelock");
 
@@ -9,10 +8,10 @@ const INITIAL_MINT = "15000"; // Pre-Mint 15,000 token
 const BLOCKS_PER_HOUR = 3600 / 3; // 3sec Block Time
 const TOKENS_PER_BLOCK = "12";
 const TIMELOCK_DELAY_SECS = 3600 * 24; // 24 Hours delay
-const STARTING_BLOCK = 4853714; // Unknown
-const REWARDS_START = String(STARTING_BLOCK + BLOCKS_PER_HOUR * 6);
-const FARM_FEE_ACCOUNT = "0xa6a4b15419F911B2C24d39329AbEa5532153dd65";
-const DEV_ADDR_ACCOUNT = "0xa6a4b15419F911B2C24d39329AbEa5532153dd65";
+const STARTING_BLOCK = 12620422; // GET FROM BSC
+const REWARDS_START = String(STARTING_BLOCK + BLOCKS_PER_HOUR * 1);
+const FARM_FEE_ACCOUNT = "0x10E138a3Fd2a2705bcc7Aff5824d6029FBc83AB5";
+const DEV_ADDR_ACCOUNT = "0x10E138a3Fd2a2705bcc7Aff5824d6029FBc83AB5";
 
 const logTx = (tx) => {
   console.dir(tx, { depth: 3 });
@@ -35,7 +34,6 @@ module.exports = async function (deployer, network, accounts) {
   }
 
   let MonsterTokenInstance;
-  let MonsterDaiInstance;
   let monsterChefInstance;
 
   /**
@@ -52,15 +50,7 @@ module.exports = async function (deployer, network, accounts) {
         BigNumber.from(INITIAL_MINT).mul(BigNumber.from(String(10 ** 18)))
       );
     })
-    .then((tx) => {
-      logTx(tx);
-      /**
-       * Deploy MonsterDai
-       */
-      return deployer.deploy(MonsterDai, MonsterToken.address);
-    })
-    .then((instance) => {
-      MonsterDaiInstance = instance;
+    .then(() => {
       /**
        * Deploy MonsterChef
        */
@@ -69,7 +59,6 @@ module.exports = async function (deployer, network, accounts) {
         return deployer.deploy(
           MonsterChef,
           MonsterToken.address, // _monsterToken
-          MonsterDai.address, // _MonsterDai
           DEV_ADDR_ACCOUNT, // _devAddr
           FARM_FEE_ACCOUNT, // _feeAddr
           BigNumber.from(TOKENS_PER_BLOCK).mul(
@@ -83,11 +72,10 @@ module.exports = async function (deployer, network, accounts) {
       return deployer.deploy(
         MonsterChef,
         MonsterToken.address,
-        MonsterDai.address,
         DEV_ADDR_ACCOUNT, // _devAddr
         FARM_FEE_ACCOUNT, // _feeAddr
         BigNumber.from(TOKENS_PER_BLOCK).mul(BigNumber.from(String(10 ** 18))),
-        0,
+        REWARDS_START,
         4
       );
     })
@@ -97,13 +85,6 @@ module.exports = async function (deployer, network, accounts) {
        * TransferOwnership of KAIJU to MonsterChef
        */
       return MonsterTokenInstance.transferOwnership(MonsterChef.address);
-    })
-    .then((tx) => {
-      logTx(tx);
-      /**
-       * TransferOwnership of monsterdai to MonsterChef
-       */
-      return MonsterDaiInstance.transferOwnership(MonsterChef.address);
     })
     .then(() => {
       /**
@@ -117,18 +98,17 @@ module.exports = async function (deployer, network, accounts) {
        */
       return deployer.deploy(Timelock, DEV_ADDR_ACCOUNT, TIMELOCK_DELAY_SECS);
     })
-    .then(() => {
-      /**
-       * TransferOwnership of MonsterChef to TimeLock Contract
-       */
-      return monsterChefInstance.transferOwnership(Timelock.address);
-    })
+    // .then(() => {
+    //   /**
+    //    * TransferOwnership of MonsterChef to TimeLock Contract
+    //    */
+    //   return monsterChefInstance.transferOwnership(Timelock.address);
+    // })
     .then(() => {
       console.log("Rewards Start at block: ", REWARDS_START);
       console.table({
         MonsterChef: MonsterChef.address,
         MonsterToken: MonsterToken.address,
-        MonsterDai: MonsterDai.address,
         MultiCall: MultiCall.address,
         Timelock: Timelock.address,
       });
