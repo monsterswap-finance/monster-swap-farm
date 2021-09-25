@@ -1,8 +1,8 @@
 # monster-farm
 
-- **MonsterChef**: [0xD39EEA6E30e3cB948dE21d4A2ddEa8a2Cbdc1c5b](https://testnet.bscscan.com/address/0xD39EEA6E30e3cB948dE21d4A2ddEa8a2Cbdc1c5b)
+- **MonsterChef**: [0xf2a27Db51778168D7962e05f42d3f0C3153AF287](https://testnet.bscscan.com/address/0xf2a27Db51778168D7962e05f42d3f0C3153AF287)
 
-- **MonsterToken**: [0x3360703A27A938c467D4d9ff3e6F4544795B2404](https://testnet.bscscan.com/address/0x3360703A27A938c467D4d9ff3e6F4544795B2404)
+- **MonsterToken**: [0xCA327104411fa8e96C2E928e9685b26165C96907](https://testnet.bscscan.com/address/0xCA327104411fa8e96C2E928e9685b26165C96907)
 
 - **MultiCall**: [0x5A228b99c42b77D3429D704693F8917fC723631A](https://testnet.bscscan.com/address/0x5A228b99c42b77D3429D704693F8917fC723631A)
 

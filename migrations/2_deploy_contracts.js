@@ -8,7 +8,7 @@ const INITIAL_MINT = "15000"; // Pre-Mint 15,000 token
 const BLOCKS_PER_HOUR = 3600 / 3; // 3sec Block Time
 const TOKENS_PER_BLOCK = "12";
 const TIMELOCK_DELAY_SECS = 3600 * 24; // 24 Hours delay
-const STARTING_BLOCK = 12620422; // GET FROM BSC
+const STARTING_BLOCK = 12664808; // GET FROM BSC
 const REWARDS_START = String(STARTING_BLOCK + BLOCKS_PER_HOUR * 1);
 const FARM_FEE_ACCOUNT = "0x10E138a3Fd2a2705bcc7Aff5824d6029FBc83AB5";
 const DEV_ADDR_ACCOUNT = "0x10E138a3Fd2a2705bcc7Aff5824d6029FBc83AB5";
@@ -86,24 +86,35 @@ module.exports = async function (deployer, network, accounts) {
        */
       return MonsterTokenInstance.transferOwnership(MonsterChef.address);
     })
-    .then(() => {
-      /**
-       * Deploy MultiCall
-       */
-      return deployer.deploy(MultiCall);
-    })
-    .then(() => {
-      /**
-       * Deploy Timelock
-       */
-      return deployer.deploy(Timelock, DEV_ADDR_ACCOUNT, TIMELOCK_DELAY_SECS);
-    })
+    //################################################################
+    //### MANUAL-DISABLED (MULTICALL)
+    // .then(() => {
+    //   /**
+    //    * Deploy MultiCall
+    //    */
+    //   return deployer.deploy(MultiCall);
+    // })
+    //################################################################
+
+    //################################################################
+    //### MANUAL-DISABLED (TIMELOCK)
+    // .then(() => {
+    //   /**
+    //    * Deploy Timelock
+    //    */
+    //   return deployer.deploy(Timelock, DEV_ADDR_ACCOUNT, TIMELOCK_DELAY_SECS);
+    // })    
+    //################################################################
+
+    //################################################################
+    //### MANUAL-DISABLED (TRANSFER-TO-TIMELOCK)
     // .then(() => {
     //   /**
     //    * TransferOwnership of MonsterChef to TimeLock Contract
     //    */
     //   return monsterChefInstance.transferOwnership(Timelock.address);
-    // })
+    // })    
+    //################################################################
     .then(() => {
       console.log("Rewards Start at block: ", REWARDS_START);
       console.table({
