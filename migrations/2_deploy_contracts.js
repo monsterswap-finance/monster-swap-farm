@@ -1,17 +1,19 @@
 const { BigNumber } = require("@ethersproject/bignumber");
 const MonsterChef = artifacts.require("MonsterChef");
 const MonsterToken = artifacts.require("MonsterToken");
+const MonsterDai =  artifacts.require("MonsterDai");
 const MultiCall = artifacts.require("MultiCall");
 const Timelock = artifacts.require("Timelock");
 
 const INITIAL_MINT = "15000"; // Pre-Mint 15,000 token
-const BLOCKS_PER_HOUR = 3600 / 3; // 3sec Block Time
+const BLOCKS_PER_MINUTE = 40;
+const BLOCKS_PER_HOUR = (BLOCKS_PER_MINUTE * 60); // 3sec Block Time
 const TOKENS_PER_BLOCK = "12";
 const TIMELOCK_DELAY_SECS = 3600 * 24; // 24 Hours delay
-const STARTING_BLOCK = 12664808; // GET FROM BSC
+const STARTING_BLOCK = 18986520; // GET FROM BSC
 const REWARDS_START = String(STARTING_BLOCK + BLOCKS_PER_HOUR * 1);
-const FARM_FEE_ACCOUNT = "0x10E138a3Fd2a2705bcc7Aff5824d6029FBc83AB5";
-const DEV_ADDR_ACCOUNT = "0x10E138a3Fd2a2705bcc7Aff5824d6029FBc83AB5";
+const FARM_FEE_ACCOUNT = "0x47280B36AC4C3D30db6a7007D7D7880d30aEea18";
+const DEV_ADDR_ACCOUNT = "0xeD78a08c1a8d32549cA15FDD30CEcdA884547F6A";
 
 const logTx = (tx) => {
   console.dir(tx, { depth: 3 });
@@ -34,6 +36,7 @@ module.exports = async function (deployer, network, accounts) {
   }
 
   let MonsterTokenInstance;
+  let MonsterDaiInstance;
   let monsterChefInstance;
 
   /**
@@ -50,7 +53,14 @@ module.exports = async function (deployer, network, accounts) {
         BigNumber.from(INITIAL_MINT).mul(BigNumber.from(String(10 ** 18)))
       );
     })
-    .then(() => {
+    .then((tx) => {    
+      /**
+       * Deploy MonsterDai
+       */
+      return deployer.deploy(MonsterDai, MonsterToken.address);
+    })
+    .then((instance) => {
+      MonsterDaiInstance = instance
       /**
        * Deploy MonsterChef
        */
@@ -58,6 +68,7 @@ module.exports = async function (deployer, network, accounts) {
         console.log(`Deploying MonsterChef with BSC MAINNET settings.`);
         return deployer.deploy(
           MonsterChef,
+          MonsterDai.address, //_MonsterDai
           MonsterToken.address, // _monsterToken
           DEV_ADDR_ACCOUNT, // _devAddr
           FARM_FEE_ACCOUNT, // _feeAddr
@@ -70,13 +81,14 @@ module.exports = async function (deployer, network, accounts) {
       }
       console.log(`Deploying MonsterChef with DEV/TEST settings`);
       return deployer.deploy(
-        MonsterChef,
+        MonsterChef,      
         MonsterToken.address,
+        MonsterDai.address, //_MonsterDai
         DEV_ADDR_ACCOUNT, // _devAddr
         FARM_FEE_ACCOUNT, // _feeAddr
         BigNumber.from(TOKENS_PER_BLOCK).mul(BigNumber.from(String(10 ** 18))),
         REWARDS_START,
-        4
+        1
       );
     })
     .then((instance) => {
@@ -86,14 +98,21 @@ module.exports = async function (deployer, network, accounts) {
        */
       return MonsterTokenInstance.transferOwnership(MonsterChef.address);
     })
+    .then((tx) => {
+      // logTx(tx);
+      /**
+       * TransferOwnership of MONSTERDAI to MonsterChef
+       */
+      return MonsterDaiInstance.transferOwnership(MonsterChef.address);
+    })
     //################################################################
     //### MANUAL-DISABLED (MULTICALL)
-    // .then(() => {
-    //   /**
-    //    * Deploy MultiCall
-    //    */
-    //   return deployer.deploy(MultiCall);
-    // })
+    .then(() => {
+      /**
+       * Deploy MultiCall
+       */
+      return deployer.deploy(MultiCall);
+    })
     //################################################################
 
     //################################################################
@@ -120,6 +139,7 @@ module.exports = async function (deployer, network, accounts) {
       console.table({
         MonsterChef: MonsterChef.address,
         MonsterToken: MonsterToken.address,
+        MonsterDai: MonsterDai.address,
         MultiCall: MultiCall.address,
         Timelock: Timelock.address,
       });

@@ -5,6 +5,9 @@ const BSC_SCANAPI_KEY = process.env.BSCSCAN_API_KEY;
 const BSC_DEPLOYER_KEY = process.env.BSC_DEPLOYER_KEY;
 const BSC_TESTNET_DEPLOYER_KEY = process.env.BSC_TESTNET_DEPLOYER_KEY;
 const BSC_TESTNET_DEPLOYER_ACC = process.env.BSC_TESTNET_DEPLOYER_ACCOUNT;
+const FTM_SCANAPI_KEY = process.env.FANTOM_API_KEY
+const FTM_DEPLOYER_KEY = process.env.FANTOM_DEPLOYER_KEY;
+const FTM_DEPLOYER_ACC = process.env.FANTOM_ACCOUNT;
 
 module.exports = {
   networks: {
@@ -17,13 +20,37 @@ module.exports = {
       provider: () =>
         new HDWalletProvider(
           BSC_TESTNET_DEPLOYER_KEY,
-          `https://data-seed-prebsc-2-s2.binance.org:8545/`
+          `https://data-seed-prebsc-1-s2.binance.org:8545/`
         ),
       network_id: 97,
       confirmations: 2,
       timeoutBlocks: 200,
       skipDryRun: true,
       from: BSC_TESTNET_DEPLOYER_ACC,
+    },
+     ftmtest: {
+      provider: () =>
+        new HDWalletProvider(
+          FTM_DEPLOYER_KEY,
+          `https://explorer.testnet.fantom.network`
+        ),
+      network_id: 4002,
+      confirmations: 1,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      from: FTM_DEPLOYER_ACC,
+    },
+     ftmmain: {
+      provider: () =>
+        new HDWalletProvider(
+          FTM_DEPLOYER_KEY,
+          `https://rpc.ftm.tools/`
+        ),
+      network_id: 250,
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      from: FTM_DEPLOYER_ACC,
     },
     bsc: {
       provider: () => {
@@ -40,8 +67,8 @@ module.exports = {
   },
   plugins: ["truffle-plugin-verify"],
   api_keys: {
-    // Add BSCSCAN_API_KEY in .env file to verify contracts deployed through truffle
-    bscscan: BSC_SCANAPI_KEY,
+    // Add BSCSCAN_API_KEY in .env file to verify contracts deployed through truffle        
+    ftmscan: 'QNXAN8BW2V4SC4FAFFSDDW49ZVS1DW9MZQ'
   },
   // Set default mocha options here, use special reporters etc.
   mocha: {

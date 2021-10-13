@@ -17,6 +17,7 @@ import '@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol';
 import '@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol';
 
 import './MonsterToken.sol';
+import "./MonsterDai.sol";
 import './interface/IMonsterReferral.sol';
 
 /**
@@ -119,6 +120,8 @@ contract MonsterChef is Ownable, ReentrancyGuard {
 
     // The MONSTER TOKEN!
     MonsterToken public Monster;
+     // The MONSTER DAI
+    MonsterDai public syrup;
     // Deposit Fee address
     address public feeAddress;
     // Dev address.
@@ -155,11 +158,12 @@ contract MonsterChef is Ownable, ReentrancyGuard {
     event SetDevAddress(address indexed user, address indexed newAddress);
     event SetFeeAddress(address indexed user, address indexed newAddress);
     event SetMultiplier(uint256 indexed _multiplier);
-    event AddPool(IBEP20 indexed _lpToken, uint256 _allocPoint, uint256 _depositFeeBP, uint256 _harvestFeeBP);
-    event UpdatePool(uint256 indexed pid, uint256 _allocPoint, uint256 _depositFeeBP, uint256 _harvestFeeBP);
+    event AddPoolInfo(IBEP20 indexed _lpToken, uint256 _allocPoint, uint256 _depositFeeBP, uint256 _harvestFeeBP);
+    event UpdatePoolInfo(uint256 indexed pid, uint256 _allocPoint, uint256 _depositFeeBP, uint256 _harvestFeeBP);
 
     constructor(
         MonsterToken _monster,
+        MonsterDai _monsterdai,
         address _devaddr,
         address _feeaddr,
         uint256 _monsterPerBlock,
@@ -167,6 +171,7 @@ contract MonsterChef is Ownable, ReentrancyGuard {
         uint256 _multiplier
     ) public {
         Monster = _monster;
+        syrup = _monsterdai;
         devaddr = _devaddr;
         feeAddress = _feeaddr;
         MonsterPerBlock = _monsterPerBlock;
@@ -174,7 +179,17 @@ contract MonsterChef is Ownable, ReentrancyGuard {
         BONUS_MULTIPLIER = _multiplier;
 
         // staking pool
-        poolInfo.push(PoolInfo({lpToken: _monster, allocPoint: 1000, lastRewardBlock: startBlock, accMonsterPerShare: 0, depositFeeBP: 0, harvestFeeBP: 0}));
+        poolInfo.push(PoolInfo
+        (
+            {
+                lpToken: _monster, 
+                allocPoint: 1000, 
+                lastRewardBlock: startBlock, 
+                accMonsterPerShare: 0, 
+                depositFeeBP: 0, 
+                harvestFeeBP: 0}
+            )
+        );
         totalAllocPoint = 1000;
     }
 
@@ -227,7 +242,7 @@ contract MonsterChef is Ownable, ReentrancyGuard {
         );
         updateStakingPool();
 
-        emit AddPool(_lpToken, _allocPoint, _depositFeeBP, _harvestFeeBP);
+        emit AddPoolInfo(_lpToken, _allocPoint, _depositFeeBP, _harvestFeeBP);
     }
 
     // Update the given pool's MONSTER allocation point. Can only be called by the owner.
@@ -247,7 +262,7 @@ contract MonsterChef is Ownable, ReentrancyGuard {
             updateStakingPool();
         }
 
-        emit UpdatePool(_pid, _allocPoint, _depositFeeBP, _harvestFeeBP);
+        emit UpdatePoolInfo(_pid, _allocPoint, _depositFeeBP, _harvestFeeBP);
     }
 
     function updateStakingPool() internal {
@@ -302,34 +317,36 @@ contract MonsterChef is Ownable, ReentrancyGuard {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 MonsterReward = multiplier.mul(MonsterPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        uint256 MonsterReward = multiplier.mul(MonsterPerBlock).mul(pool.allocPoint).div(totalAllocPoint);    
         Monster.mint(devaddr, MonsterReward.div(10));
-
-        if (address(monsterReferral) != address(0)) {
-            Monster.mint(address(monsterReferral), 0); //Mint to Referral Contract
-        }
-
-        Monster.mint(address(this), MonsterReward);
-
+        Monster.mint(address(syrup), MonsterReward);
         pool.accMonsterPerShare = pool.accMonsterPerShare.add(MonsterReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
+                
+        if (address(monsterReferral) != address(0)) {
+            Monster.mint(devaddr, MonsterReward.div(20));            
+        }
     }
 
     // Deposit LP tokens to MonsterChef for MONSTER allocation.
-    function deposit(uint256 _pid, uint256 _amount, address _referrer) public nonReentrant {
+    function deposit(uint256 _pid, uint256 _amount, address _referrer) public nonReentrant {        
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
-        if (_amount > 0 && address(monsterReferral) != address(0) && _referrer != address(0) && _referrer != msg.sender) {
-            monsterReferral.recordReferral(msg.sender, _referrer);
-        }
+        if (
+            _amount > 0 && 
+            address(monsterReferral) != address(0) && 
+            _referrer != address(0) && 
+            _referrer != msg.sender
+            ) 
+        { monsterReferral.recordReferral(msg.sender, _referrer); }
 
         if (user.amount > 0) {
             uint256 pending = user.amount.mul(pool.accMonsterPerShare).div(1e12).sub(user.rewardDebt);
             if (pending > 0) {
                 if (pool.harvestFeeBP > 0) {
                     uint256 harvestFee = pending.mul(pool.harvestFeeBP).div(10000);
-                    pool.lpToken.safeTransfer(feeAddress, harvestFee);
+                    safeMonsterTransfer(feeAddress, harvestFee);                    
                     pending = pending.sub(harvestFee);
                 }
                 safeMonsterTransfer(msg.sender, pending);
@@ -338,17 +355,17 @@ contract MonsterChef is Ownable, ReentrancyGuard {
         }
         if (_amount > 0) {
             pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
-            if (pool.depositFeeBP > 0) {
+            if (pool.depositFeeBP > 0) {                
                 uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);
-                if (depositFee > 0) {
-                    pool.lpToken.safeTransfer(feeAddress, depositFee);
-                }
+                pool.lpToken.safeTransfer(feeAddress, depositFee);                
                 user.amount = user.amount.add(_amount).sub(depositFee);
             } else {
                 user.amount = user.amount.add(_amount);
             }
         }
         user.rewardDebt = user.amount.mul(pool.accMonsterPerShare).div(1e12);
+
+        if (_pid == 0) { syrup.mint(msg.sender, _amount); }             
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -362,7 +379,7 @@ contract MonsterChef is Ownable, ReentrancyGuard {
         if (pending > 0) {
             if (pool.harvestFeeBP > 0) {
                 uint256 harvestFee = pending.mul(pool.harvestFeeBP).div(10000);
-                pool.lpToken.safeTransfer(feeAddress, harvestFee);
+                safeMonsterTransfer(feeAddress, harvestFee);                    
                 pending = pending.sub(harvestFee);
             }
             safeMonsterTransfer(msg.sender, pending);
@@ -373,6 +390,8 @@ contract MonsterChef is Ownable, ReentrancyGuard {
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accMonsterPerShare).div(1e12);
+
+        if (_pid == 0) { syrup.burn(msg.sender, _amount); }        
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -380,8 +399,10 @@ contract MonsterChef is Ownable, ReentrancyGuard {
     function emergencyWithdraw(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
+        if(_pid == 0) { syrup.burn(msg.sender, amount); }
         pool.lpToken.safeTransfer(address(msg.sender), user.amount);
         emit EmergencyWithdraw(msg.sender, _pid, user.amount);
     }
@@ -392,30 +413,10 @@ contract MonsterChef is Ownable, ReentrancyGuard {
             monsterReferral.CalculateCommission(_user, commissionAmount);
         }
     }
-
-    function getPoolInfo(uint256 _pid)
-        public
-        view
-        returns (
-            address lpToken,
-            uint256 allocPoint,
-            uint256 lastRewardBlock,
-            uint256 accMonsterPerShare
-        )
-    {
-        return (address(poolInfo[_pid].lpToken), poolInfo[_pid].allocPoint, poolInfo[_pid].lastRewardBlock, poolInfo[_pid].accMonsterPerShare);
-    }
-
+  
     // Safe Monster transfer function, just in case if rounding error causes pool to not have enough MONSTER.
     function safeMonsterTransfer(address _to, uint256 _amount) internal {
-        uint256 MonsterBal = Monster.balanceOf(address(this));
-        bool transferSuccess = false;
-        if (_amount > MonsterBal) {
-            transferSuccess = Monster.transfer(_to, MonsterBal);
-        } else {
-            transferSuccess = Monster.transfer(_to, _amount);
-        }
-        require(transferSuccess, 'safeMonsterTransfer: Transfer failed');
+        syrup.safeCakeTransfer(_to, _amount);    
     }
 
     // Update dev address by the previous dev.
